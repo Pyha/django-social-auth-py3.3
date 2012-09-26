@@ -14,7 +14,7 @@ from urllib import urlencode
 
 from openid.consumer.consumer import Consumer, SUCCESS, CANCEL, FAILURE
 from openid.consumer.discover import DiscoveryFailure
-from openid.extensions import sreg, ax
+from openid.extensions import sreg, ax, pape
 
 from oauth2 import Consumer as OAuthConsumer, Token, Request as OAuthRequest
 
@@ -492,6 +492,16 @@ class OpenIdAuth(BaseAuth):
         else:
             fetch_request = sreg.SRegRequest(optional=dict(SREG_ATTR).keys())
         openid_request.addExtension(fetch_request)
+
+        # Add PAPE Extension for max_auth_age, if configured
+        max_age = setting('SOCIAL_AUTH_OPENID_PAPE_MAX_AUTH_AGE')
+        if max_age is not None:
+            try:
+                openid_request.addExtension(
+                    pape.Request(max_auth_age=int(max_age))
+                )
+            except (ValueError, TypeError):
+                pass
 
         return openid_request
 
