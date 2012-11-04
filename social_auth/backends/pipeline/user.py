@@ -43,17 +43,20 @@ def create_user(backend, details, response, uid, username, user=None, *args,
         return {'user': user}
     if not username:
         return None
-    # NOTE: not return None because Django raises exception of strip email
-    email = details.get('email') or ''
+
     return {
-        'user': UserSocialAuth.create_user(username=username, email=email),
+        'user': UserSocialAuth.create_user(username=username,
+                                           email=details.get('email')),
         'is_new': True
     }
 
 
-def update_user_details(backend, details, response, user, is_new=False, *args,
-                        **kwargs):
+def update_user_details(backend, details, response, user=None, is_new=False,
+                        *args, **kwargs):
     """Update user details using data from provider."""
+    if user is None:
+        return
+
     changed = False  # flag to track changes
 
     for name, value in details.iteritems():

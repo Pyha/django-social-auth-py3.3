@@ -81,6 +81,7 @@ class SocialAuthBackend(object):
     """A django.contrib.auth backend that authenticates the user based on
     a authentication provider response"""
     name = ''  # provider name, it's stored in database
+    supports_inactive_user = False
 
     def authenticate(self, *args, **kwargs):
         """Authenticate user using social credentials
@@ -493,15 +494,26 @@ class OpenIdAuth(BaseAuth):
             fetch_request = sreg.SRegRequest(optional=dict(SREG_ATTR).keys())
         openid_request.addExtension(fetch_request)
 
-        # Add PAPE Extension for max_auth_age, if configured
+        # Add PAPE Extension for if configured
+        preferred_policies = setting(
+            'SOCIAL_AUTH_OPENID_PAPE_PREFERRED_AUTH_POLICIES')
+        preferred_level_types = setting(
+            'SOCIAL_AUTH_OPENID_PAPE_PREFERRED_AUTH_LEVEL_TYPES')
         max_age = setting('SOCIAL_AUTH_OPENID_PAPE_MAX_AUTH_AGE')
         if max_age is not None:
             try:
-                openid_request.addExtension(
-                    pape.Request(max_auth_age=int(max_age))
-                )
+                max_age = int(max_age)
             except (ValueError, TypeError):
-                pass
+                max_age = None
+
+        if (max_age is not None or preferred_policies is not None
+            or preferred_level_types is not None):
+            pape_request = pape.Request(
+                preferred_auth_policies=preferred_policies,
+                max_auth_age=max_age,
+                preferred_auth_level_types=preferred_level_types
+            )
+            openid_request.addExtension(pape_request)
 
         return openid_request
 
@@ -519,11 +531,14 @@ class OpenIdAuth(BaseAuth):
 
     def openid_request(self, extra_params=None):
         """Return openid request"""
-        try:
-            return self.consumer().begin(url_add_parameters(self.openid_url(),
-                                                            extra_params))
-        except DiscoveryFailure, err:
-            raise AuthException(self, 'OpenID discovery error: %s' % err)
+        if not hasattr(self, '_openid_request'):
+            try:
+                self._openid_request = self.consumer().begin(
+                    url_add_parameters(self.openid_url(), extra_params)
+                )
+            except DiscoveryFailure, err:
+                raise AuthException(self, 'OpenID discovery error: %s' % err)
+        return self._openid_request
 
     def openid_url(self):
         """Return service provider URL.
