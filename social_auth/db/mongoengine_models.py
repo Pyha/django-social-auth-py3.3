@@ -3,6 +3,12 @@ MongoEngine models for Social Auth
 
 Requires MongoEngine 0.6.10
 """
+try:
+    from django.contrib.auth.hashers import UNUSABLE_PASSWORD
+    _ = UNUSABLE_PASSWORD  # to quiet flake
+except (ImportError, AttributeError):
+    UNUSABLE_PASSWORD = '!'
+
 from mongoengine import DictField, Document, IntField, ReferenceField, \
                         StringField
 from mongoengine.django.auth import User
@@ -14,7 +20,7 @@ from social_auth.db.base import UserSocialAuthMixin, AssociationMixin, \
 
 class UserSocialAuth(Document, UserSocialAuthMixin):
     """Social Auth association model"""
-    user = ReferenceField(User)
+    user = ReferenceField(User, dbref=True)
     provider = StringField(max_length=32)
     uid = StringField(max_length=255, unique_with='provider')
     extra_data = DictField()
@@ -34,16 +40,35 @@ class UserSocialAuth(Document, UserSocialAuthMixin):
         return UserSocialAuth.user_model().username.max_length
 
     @classmethod
+    def email_max_length(cls):
+        return UserSocialAuth.user_model().email.max_length
+
+    @classmethod
     def user_model(cls):
         return User
 
     @classmethod
-    def create_user(cls, username, email=None):
+    def create_user(cls, *args, **kwargs):
         # Empty string makes email regex validation fail
-        if email == '':
-            email = None
-        return cls.user_model().objects.create_user(username=username,
-                                                    email=email)
+        if kwargs.get('email') == '':
+            kwargs['email'] = None
+        kwargs.setdefault('password', UNUSABLE_PASSWORD)
+        return cls.user_model().create_user(*args, **kwargs)
+
+    @classmethod
+    def allowed_to_disconnect(cls, user, backend_name, association_id=None):
+        if association_id is not None:
+            qs = cls.objects.filter(id__ne=association_id)
+        else:
+            qs = cls.objects.filter(provider__ne=backend_name)
+        qs = qs.filter(user=user)
+
+        if hasattr(user, 'has_usable_password'):
+            valid_password = user.has_usable_password()
+        else:
+            valid_password = True
+
+        return valid_password or qs.count() > 0
 
 
 class Nonce(Document, NonceMixin):

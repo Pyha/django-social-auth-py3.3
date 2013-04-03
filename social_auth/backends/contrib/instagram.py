@@ -2,7 +2,7 @@ from urllib import urlencode
 
 from django.utils import simplejson
 
-from social_auth.backends import BaseOAuth2, OAuthBackend, USERNAME
+from social_auth.backends import BaseOAuth2, OAuthBackend
 from social_auth.utils import dsa_urlopen
 
 
@@ -15,16 +15,28 @@ INSTAGRAM_CHECK_AUTH = 'https://api.instagram.com/v1/users/self'
 class InstagramBackend(OAuthBackend):
     name = 'instagram'
 
+    @classmethod
+    def extra_data(cls, user, uid, response, details=None):
+        """Return access_token and extra defined names to store in
+        extra_data field"""
+        data = super(InstagramBackend, cls).extra_data(user, uid, response,
+                                                       details)
+        try:
+            data['username'] = response['user']['username']
+        except KeyError:
+            pass
+        return data
+
     def get_user_id(self, details, response):
         return response['user']['id']
 
     def get_user_details(self, response):
         """Return user details from Instagram account"""
         username = response['user']['username']
-        fullname = response['user'].get('fullname', '')
+        fullname = response['user'].get('full_name', '')
         email = response['user'].get('email', '')
         return {
-            USERNAME: username,
+            'username': username,
             'first_name': fullname,
             'email': email
         }
@@ -34,7 +46,6 @@ class InstagramAuth(BaseOAuth2):
     """Instagram OAuth mechanism"""
     AUTHORIZATION_URL = INSTAGRAM_AUTHORIZATION_URL
     ACCESS_TOKEN_URL = INSTAGRAM_ACCESS_TOKEN_URL
-    SERVER_URL = INSTAGRAM_SERVER
     AUTH_BACKEND = InstagramBackend
     SETTINGS_KEY_NAME = 'INSTAGRAM_CLIENT_ID'
     SETTINGS_SECRET_NAME = 'INSTAGRAM_CLIENT_SECRET'
