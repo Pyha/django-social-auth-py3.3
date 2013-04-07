@@ -18,6 +18,7 @@ from social_auth.backends import SocialAuthBackend, OAuthBackend, BaseAuth, \
                                  BaseOAuth2
 from social_auth.exceptions import AuthTokenRevoked, AuthException, AuthCanceled, AuthFailed
 from social_auth.utils import setting, log, dsa_urlopen
+from social_auth.exceptions import AuthCanceled, AuthFailed
 
 
 # Vkontakte configuration
