@@ -77,7 +77,7 @@ def vkontakte_view(request, *args, **kwargs):
     # pipeline redirects fail the normal workflow here.
     auth_response = kwargs.get('auth_response')
     if auth_response:
-        for item in auth_response.items():
+        for item in list(auth_response.items()):
             if item[0] == 'Location' and 'form' in item[1]:
                 return auth_response
 

@@ -43,8 +43,8 @@ def social_auth_by_name_backends(request):
     google-oauth2 becomes google_oauth2 when referenced in templates.
     """
     def context_value():
-        keys = [key for key in get_backends().keys()]
-        accounts = dict(zip(keys, [None] * len(keys)))
+        keys = [key for key in list(get_backends().keys())]
+        accounts = dict(list(zip(keys, [None] * len(keys))))
         user = request.user
         if user_is_authenticated(user):
             accounts.update((assoc.provider, assoc)
