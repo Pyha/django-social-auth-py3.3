@@ -454,7 +454,8 @@ Miscellaneous Settings
     SOCIAL_AUTH_FORCE_POST_DISCONNECT = True
 
   And ensure that any call to `/disconnect/foobar/` or `/disconnect/foobar/<id>/`
-  is done using POST.
+  is done using POST. A 405 status code will be returned if the URL is not loaded
+  with a POST method. Also ensure that a CSRF token is sent in the request.
 
 - The update_user_details pipeline processor will set certain fields on user
   objects, such as ``email``. Set this to a list of fields you only want to
@@ -472,10 +473,6 @@ Miscellaneous Settings
 
     SOCIAL_AUTH_SESSION_EXPIRATION = False
 
-- It's possible to disable user creations by ``django-social-auth`` with::
-
-      SOCIAL_AUTH_CREATE_USERS = False
-
 - If you want to store extra parameters from POST or GET in session, like it
   was made for ``next`` parameter, define this setting::
 
@@ -489,6 +486,13 @@ Miscellaneous Settings
     SOCIAL_AUTH_OPENID_PAPE_MAX_AUTH_AGE = <int value>
 
   Otherwise the extension is not used.
+
+- If you want to revoke a provider's tokens on disconnect, define this setting::
+
+    SOCIAL_AUTH_REVOKE_TOKENS_ON_DISCONNECT = True
+
+  Currently only handled for Facebook and Google-OAuth2. Some providers (e.g. Twitter)
+  do not support revoking tokens from your app at all.
 
 
 Linking in your templates
@@ -509,7 +513,19 @@ social accounts for a given backend (not really useful IMO)::
 
 Or to disconnect individual accounts::
 
-    {% url "socialauth_disconnect_individual" "backend-name" backend-id %}
+    {% url "socialauth_disconnect_individual" "backend-name" association_id %}
+
+For example, given a ``UserSocialAuth`` instance under the name ``social`` in
+templates context, you can create a link to disconnect that association with::
+
+    <a href="{% url "socialauth_disconnect_individual" social.provider social.id %}">Disconnect {{ social.provider }}</a>
+
+or disconnect all association for given provider with::
+
+    <a href="{% url "socialauth_disconnect" social.provider %}">Disconnect {{ social.provider }}</a>
+
+You can set SOCIAL_AUTH_REVOKE_TOKENS_ON_DISCONNECT to True if you wish to revoke
+tokens on disconnect (only some backends support this).
 
 .. _Model Manager: http://docs.djangoproject.com/en/dev/topics/db/managers/#managers
 .. _Login URL: http://docs.djangoproject.com/en/dev/ref/settings/?from=olddocs#login-url
