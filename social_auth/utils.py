@@ -11,8 +11,10 @@ from collections import defaultdict
 
 from django.conf import settings
 from django.db.models import Model
+from django.db.models.loading import get_model
 from django.contrib.contenttypes.models import ContentType
 from django.utils.functional import SimpleLazyObject
+from django.utils.importlib import import_module
 
 
 try:
@@ -59,8 +61,10 @@ except ImportError:  # django < 1.4
 get_random_string = random_string
 constant_time_compare = ct_compare
 
+LEAVE_CHARS = getattr(settings, 'SOCIAL_AUTH_LOG_SANITIZE_LEAVE_CHARS', 4)
 
-def sanitize_log_data(secret, data=None, leave_characters=4):
+
+def sanitize_log_data(secret, data=None, leave_characters=LEAVE_CHARS):
     """
     Clean private/secret data from log statements and other data.
 
@@ -237,10 +241,19 @@ def get_backend_name(backend):
     return getattr(getattr(backend, 'AUTH_BACKEND', backend), 'name', None)
 
 
-def custom_user_frozen_models():
+def get_custom_user_model_for_migrations():
     user_model = getattr(settings, 'SOCIAL_AUTH_USER_MODEL', None) or \
-                 getattr(settings, 'AUTH_USER_MODEL', None) or \
-                 'auth.User'
+        getattr(settings, 'AUTH_USER_MODEL', None) or 'auth.User'
+    if user_model != 'auth.User':
+        # In case of having a proxy model defined as USER_MODEL
+        # We use auth.User instead to prevent migration errors
+        # Since proxy models aren't present in migrations
+        if get_model(*user_model.split('.'))._meta.proxy:
+            user_model = 'auth.User'
+    return user_model
+
+
+def custom_user_frozen_models(user_model):
     migration_name = getattr(settings, 'INITIAL_CUSTOM_USER_MIGRATION',
                              '0001_initial.py')
     if user_model != 'auth.User':
@@ -258,6 +271,12 @@ def custom_user_frozen_models():
     else:
         extra_model = {}
     return extra_model
+
+
+def module_member(name):
+    mod, member = name.rsplit('.', 1)
+    module = import_module(mod)
+    return getattr(module, member)
 
 
 if __name__ == '__main__':

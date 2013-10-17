@@ -40,7 +40,7 @@ APP_NAMESPACE = setting('FACEBOOK_APP_NAMESPACE', None)
 REDIRECT_HTML = """
 <script type="text/javascript">
     var domain = 'https://apps.facebook.com/',
-        redirectURI = domain + {{ FACEBOOK_APP_NAMESPACE }} + '/';
+        redirectURI = domain + '{{ FACEBOOK_APP_NAMESPACE }}' + '/';
     window.top.location = 'https://www.facebook.com/dialog/oauth/' +
     '?client_id={{ FACEBOOK_APP_ID }}' +
     '&redirect_uri=' + encodeURIComponent(redirectURI) +
@@ -236,7 +236,7 @@ class FacebookAppAuth(FacebookAuth):
     uses_redirect = False
 
     def auth_complete(self, *args, **kwargs):
-        if not self.application_auth():
+        if not self.application_auth() and 'error' not in self.data:
             return HttpResponse(self.auth_html())
 
         access_token = None

@@ -1,9 +1,11 @@
 from uuid import uuid4
 
-from django.template.defaultfilters import slugify
-
-from social_auth.utils import setting
+from social_auth.utils import setting, module_member
 from social_auth.models import UserSocialAuth
+
+
+slugify = module_member(setting('SOCIAL_AUTH_SLUGIFY_FUNCTION',
+                                'django.template.defaultfilters.slugify'))
 
 
 def get_username(details, user=None,
@@ -83,8 +85,11 @@ def mongoengine_orm_maxlength_truncate(backend, details, user=None,
     for name, value in details.iteritems():
         if name in names and not _ignore_field(name, is_new):
             max_length = user._fields[name].max_length
-            if max_length and len(value) > max_length:
-                value = value[:max_length]
+            try:
+                if max_length and len(value) > max_length:
+                    value = value[:max_length]
+            except TypeError:
+                pass
         out[name] = value
     return {'details': out}
 
@@ -100,8 +105,11 @@ def django_orm_maxlength_truncate(backend, details, user=None, is_new=False,
     for name, value in details.iteritems():
         if name in names and not _ignore_field(name, is_new):
             max_length = user._meta.get_field(name).max_length
-            if max_length and len(value) > max_length:
-                value = value[:max_length]
+            try:
+                if max_length and len(value) > max_length:
+                    value = value[:max_length]
+            except TypeError:
+                pass
         out[name] = value
     return {'details': out}
 
